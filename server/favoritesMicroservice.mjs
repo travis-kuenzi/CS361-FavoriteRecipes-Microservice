@@ -16,40 +16,75 @@ app.use(express.json());
 app.post("/addFavorite", async(req, res) => {
     const { data } = req.body;
 
-    if (data.user && data.recipe ) {
+    console.log(`userID: ${data.userID}, recipeID: ${data.recipeID}\n`);
+
+    if (data.userID && data.recipeID ) {
+        const exists = await Favorite.findOne({ userID: data.userID, recipeID: data.recipeID });
+        if (exists) {
+            return res.json({
+                message: "Already in favorites!"
+            });
+        }
+
         const newFavorite = new Favorite({
-            user: data.user,
-            recipe: data.recipe
+            userID: data.userID,
+            recipeID: data.recipeID,
+            recipeImage: data.recipeImage,
+            recipeTitle: data.recipeTitle,
+            recipeServings: data.recipeServings,
+            recipeReadyInMinutes: data.recipeReadyInMinutes
         })
         await newFavorite.save();
         return res.json({
-            message: "successful"
+            message: "Successfully added to favorites!"
         })
     } else {
-        return res.error({
-            message: "Error! Failed to add to favorites."
+        return res.json({
+            message: "Invalid Input!"
         })
     }
 });
 
-app.get("/favorites/:user", async (req, res) => {
-    const { user } = req.params;
+app.post("/removeFavorite/:favoriteID", async (req, res) => {
+    console.log("Running removeFavorite...");
+    
+    const favoriteID = req.params.favoriteID;
+
+    console.log(`Got favoriteID: ${favoriteID}`);
 
     try {
-        // Find all favorite items for the specified user
-        const results = await Favorite.find({ user: user });
+        const result = await Favorite.deleteOne({ _id: favoriteID });
+
+        if (result.deletedCount > 0) {
+            res.status(200).json({ message: "Favorite successfully removed." });
+        } else {
+            res.status(404).json({ errorMessage: "Favorite not found for the given user and recipe ID." });
+        }
+    } catch (error) {
+        console.error("Error removing favorite:", error);
+        res.status(500).json({ errorMessage: "An error occurred while removing the favorite." });
+    }
+});
+
+
+app.get("/favorites/:userID", async (req, res) => {
+    const { userID } = req.params;
+
+    try {
+        // Find all favorite items for the specified userID
+        const results = await Favorite.find({ userID: userID });
 
         // Check if any favorites were found
         if (results.length > 0) {
             return res.json({
                 success: true,
-                message: `Found ${results.length} favorite(s) for user ${user}.`,
+                message: `Found ${results.length} favorite(s) for userID ${userID}.`,
                 data: results
             });
         } else {
             return res.json({
                 success: true,
-                message: `No favorites found for user ${user}.`
+                message: `No favorites found for userID ${userID}.`
             });
         }
     } catch (err) {
